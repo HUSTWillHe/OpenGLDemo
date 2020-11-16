@@ -1,0 +1,4 @@
+/Users/heliwei/workspace/Playground/OpenGL/build/CMakeFiles/rebuild_cache.dir
+/Users/heliwei/workspace/Playground/OpenGL/build/CMakeFiles/edit_cache.dir
+/Users/heliwei/workspace/Playground/OpenGL/build/CMakeFiles/Demo.dir
+/Users/heliwei/workspace/Playground/OpenGL/build/CMakeFiles/libglad.dir

@@ -1,0 +1,1 @@
+/Library/Developer/CommandLineTools/usr/bin/c++  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX11.0.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/Demo.dir/src/main.cpp.o -o Demo   -L/Users/heliwei/workspace/Playground/OpenGL/./lib/glfw  -Wl,-rpath,/Users/heliwei/workspace/Playground/OpenGL/./lib/glfw -lglfw.3 liblibglad.a 
