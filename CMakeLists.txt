@@ -11,7 +11,7 @@ link_directories(./lib/glfw/)
 aux_source_directory(lib/glad/ glad)
 add_library(libglad ${glad})
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp include/stb/stb_image.cpp)
 
 target_link_libraries(${PROJECT_NAME} libglfw.3.dylib libglad)
 
