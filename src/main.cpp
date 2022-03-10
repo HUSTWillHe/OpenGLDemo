@@ -1,11 +1,15 @@
 #include <glad/glad.h>
 #include <glfw/glfw3.h>
 #include <stb/stb_image.h>
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 #include <learnopengl/shader.h>
 
 #include <iostream>
 #include <string>
+#include <vector>
+#include <fstream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -13,6 +17,11 @@ void processInput(GLFWwindow *window);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+std::vector<float> gaussWeights(int radius) {
+	std::vector<float> rst{0.095, 0.118, 0.095, 0.118, 0.148, 0.118, 0.095, 0.118, 0.095};
+	return rst;
+}
 
 int main()
 {
@@ -100,43 +109,131 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // load image, create texture and generate mipmaps
-    int width = 1000, height = 1000, nrChannels = 3;
+    int width = 800, height = 800, nrChannels = 3;
     // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-    std::string image_path = "rectangle.jpg";
+    std::string image_path = "goods.jpg";
     unsigned char *data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
     if (data)
     {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);  
         glGenerateMipmap(GL_TEXTURE_2D);
     }
     else
     {
         std::cout << "Failed to load texture" << std::endl;
     }
-    stbi_image_free(data);
+    stbi_image_free(data);  
 
+	unsigned int maskTexture;
+	glGenTextures(1, &maskTexture);
+	glBindTexture(GL_TEXTURE_2D, maskTexture);
+    // set the texture wrapping parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ 
+	image_path = "mask.jpg";
+	nrChannels = 1;
+	data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
+	if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, data); //todo 试一下GL_RED如果不行就gl_alpha, todo 怎么加载第二张图片
+        glGenerateMipmap(GL_TEXTURE_2D);
+	} else {
+        std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+
+	// fbo
+	unsigned int fboTexture;
+	glGenTextures(1, &fboTexture);
+	glBindTexture(GL_TEXTURE_2D, fboTexture);
+	// set the texture wrapping parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	unsigned int renderBufferId;
+	glGenRenderbuffers(1, &renderBufferId);
+	glBindRenderbuffer(GL_RENDERBUFFER, renderBufferId);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0); 
+
+	unsigned int frameBufferId;
+	glGenFramebuffers(1, &frameBufferId);
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBufferId);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
+
+	ourShader.use();
+	ourShader.setInt("ourTexture0", 0);
+	ourShader.setInt("ourTexture1", 1);
+	ourShader.setInt("width", width);
+	ourShader.setInt("height", height);
+	glm::mat3 a = glm::make_mat3(gaussWeights(3).data());
+	ourShader.setMat3("gaussWeight", a);
 
     // render loop
     // -----------
+	int cnt = 0;
     while (!glfwWindowShouldClose(window))
     {
         // input
         // -----
         processInput(window);
 
+		if (cnt == 10) {
+			std::cout<<"now write file"<<std::endl;
+			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+			glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			glBindTexture(GL_TEXTURE_2D, texture);
+			ourShader.use();
+			glBindVertexArray(VAO);
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+			glBindTexture(GL_TEXTURE_2D, fboTexture);
+			std::vector<char> buf(width * height * 3);
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)buf.data());
+			std::fstream f("./image.rgb", std::ios::out | std::ios::binary);
+			f.write(buf.data(), buf.size());
+			f.close();
+			cnt ++;
+			glfwSwapBuffers(window);
+			glfwPollEvents();
+			continue;
+		}
+
         // render
         // ------
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // bind Texture
         glBindTexture(GL_TEXTURE_2D, texture);
 
         // render container
         ourShader.use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, maskTexture);
+
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+		cnt ++;
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -148,6 +245,10 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
+	glDeleteFramebuffers(1, &frameBufferId);
+	glDeleteTextures(1, &texture);
+	glDeleteTextures(1, &fboTexture);
+	glDeleteRenderbuffers(1, &renderBufferId);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
