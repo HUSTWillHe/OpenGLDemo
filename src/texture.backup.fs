@@ -19,10 +19,15 @@ void main()
 		}
 	}
 	if (alphaSum >= 0.99) {
-		FragColor = vec4(1.0, vec3(0.0));
+		FragColor = vec4(texture(ourTexture0, TexCoord).rgb, 1.0);
 	}
 	else if (alphaSum > 0.01 && alphaSum < 0.99) { 
-		FragColor = vec4(0.0, 1.0, vec2(0.0));  
+		vec4 gaussedColor = vec4(vec3(0.0), 1.0);
+		for (int i = -radius; i < radius + 1; i++) {
+			for (int j = -radius; j < radius + 1; j++) {
+				gaussedColor += gaussWeight[abs(i) * (radius + 1) + abs(j)] * texture(ourTexture0, vec2(TexCoord.x + i/width, TexCoord.y + j/height));
+			}
+		}	
 	} else {
 		FragColor = vec4(0.0);
 	}
