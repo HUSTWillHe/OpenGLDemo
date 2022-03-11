@@ -4,7 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
-#include <learnopengl/shader.h>
+#include "learnopengl/shader.h"
+#include "utils/genGaussWeights.h"
+#include "utils/setRadiusInFs.h"
 
 #include <iostream>
 #include <string>
@@ -18,13 +20,26 @@ void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-std::vector<float> gaussWeights(int radius) {
-	std::vector<float> rst{0.095, 0.118, 0.095, 0.118, 0.148, 0.118, 0.095, 0.118, 0.095};
-	return rst;
-}
-
-int main()
+int main(int argc, char** argv)
 {
+	int radius = 0;
+	if (argc == 2) {
+		std::string str(argv[1]);
+		radius = std::stoi(str);
+	} else {
+		radius = 3;
+	}
+	std::vector<float> gaussWeight = genGaussWeight(radius);
+	std::cout<<"====================================="<<std::endl;
+	std::cout<<"gauss weight"<<std::endl;
+	for (auto i = 0; i < radius + 1; i++) {
+		for (auto j = 0; j < radius + 1; j++) {
+			std::cout<<gaussWeight[i * (radius + 1) + j]<<" ";
+		}
+		std::cout<<std::endl;
+	}
+	std::cout<<std::endl;
+	setRadius(radius, "../src/texture.backup.fs", "../src/texture.fs");  // 这里并没有实时修改过来
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -58,7 +73,7 @@ int main()
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("texture.vs", "texture.fs"); 
+    Shader ourShader("../src/texture.vs", "../src/texture.fs"); 
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -179,8 +194,7 @@ int main()
 	ourShader.setInt("ourTexture1", 1);
 	ourShader.setInt("width", width);
 	ourShader.setInt("height", height);
-	glm::mat3 a = glm::make_mat3(gaussWeights(3).data());
-	ourShader.setMat3("gaussWeight", a);
+	glUniform1fv(glGetUniformLocation(ourShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
     // render loop
     // -----------
@@ -247,6 +261,7 @@ int main()
     glDeleteBuffers(1, &EBO);
 	glDeleteFramebuffers(1, &frameBufferId);
 	glDeleteTextures(1, &texture);
+	glDeleteTextures(1, &maskTexture);
 	glDeleteTextures(1, &fboTexture);
 	glDeleteRenderbuffers(1, &renderBufferId);
 

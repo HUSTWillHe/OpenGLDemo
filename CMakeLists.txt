@@ -5,7 +5,7 @@ project(Demo)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED Ture)
 
-include_directories(./include/)
+include_directories(./include/ ./)
 link_directories(./lib/glfw/)
 
 aux_source_directory(lib/glad/ glad)

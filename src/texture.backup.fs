@@ -8,14 +8,14 @@ in vec2 TexCoord;
 uniform sampler2D ourTexture0;
 uniform sampler2D ourTexture1;
 uniform int width, height;
-uniform float gaussWeight[(9 + 1) * (9 + 1)]; 
+uniform float gaussWeight[(radius + 1) * (radius + 1)]; 
 
 void main()
 {
 	float alphaSum = 0.0;
-	for (int i = -9; i < 9 + 1; i++) {
-		for (int j = -9; j < 9 + 1; j++) {
-			alphaSum += gaussWeight[abs(i) * (9 + 1) + abs(j)] * texture(ourTexture1, vec2(TexCoord.x + i/width, TexCoord.y + j/height)).r;
+	for (int i = -radius; i < radius + 1; i++) {
+		for (int j = -radius; j < radius + 1; j++) {
+			alphaSum += gaussWeight[abs(i) * (radius + 1) + abs(j)] * texture(ourTexture1, vec2(TexCoord.x + i/width, TexCoord.y + j/height)).r;
 		}
 	}
 	if (alphaSum >= 0.99) {
@@ -27,4 +27,3 @@ void main()
 		FragColor = vec4(0.0);
 	}
 }
-
