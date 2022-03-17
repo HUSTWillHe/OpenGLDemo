@@ -79,10 +79,10 @@ int main(int argc, char** argv)
     // ------------------------------------------------------------------
     float vertices[] = {
         // positions          // colors           // texture coords
-         0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
-         0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
-        -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
+         1.0f,  1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+         1.0f, -1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+        -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
     };
     unsigned int indices[] = {  
         0, 1, 3, // first triangle
@@ -176,7 +176,8 @@ int main(int argc, char** argv)
 	unsigned int renderBufferId;
 	glGenRenderbuffers(1, &renderBufferId);
 	glBindRenderbuffer(GL_RENDERBUFFER, renderBufferId);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+	// glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0); 
 
 	unsigned int frameBufferId;
@@ -187,7 +188,6 @@ int main(int argc, char** argv)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_TEXTURE_2D);
 
 	ourShader.use();
 	ourShader.setInt("ourTexture0", 0);
@@ -196,37 +196,40 @@ int main(int argc, char** argv)
 	ourShader.setInt("height", height);
 	glUniform1fv(glGetUniformLocation(ourShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
+	// fbo render
+	std::cout<<"now write file"<<std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glBindTexture(GL_TEXTURE_2D, texture);
+	ourShader.use();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, maskTexture);
+
+	glBindVertexArray(VAO);
+	glEnableVertexAttribArray(0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	glBindTexture(GL_TEXTURE_2D, fboTexture);
+	std::vector<char> buf(width * height * 3);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)buf.data());
+	std::string file_name;
+	file_name = "../resource/result" + std::to_string(radius) + ".rgb";
+	std::ofstream f(file_name, std::ios::out | std::ios::binary);
+	f.write(buf.data(), buf.size());
+	f.close();
+	glfwSwapBuffers(window);
+	glfwPollEvents();
     // render loop
     // -----------
-	int cnt = 0;
     while (!glfwWindowShouldClose(window))
     {
         // input
         // -----
         processInput(window);
-
-		if (cnt == 10) {
-			std::cout<<"now write file"<<std::endl;
-			glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
-			glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			glBindTexture(GL_TEXTURE_2D, texture);
-			ourShader.use();
-			glBindVertexArray(VAO);
-			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-			glBindTexture(GL_TEXTURE_2D, fboTexture);
-			std::vector<char> buf(width * height * 3);
-			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)buf.data());
-			std::fstream f("./image.rgb", std::ios::out | std::ios::binary);
-			f.write(buf.data(), buf.size());
-			f.close();
-			cnt ++;
-			glfwSwapBuffers(window);
-			glfwPollEvents();
-			continue;
-		}
 
         // render
         // ------
@@ -247,7 +250,6 @@ int main(int argc, char** argv)
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-		cnt ++;
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);

@@ -18,7 +18,7 @@ std::vector<float> genGaussWeight(int radius) {
 
 	for (int i = 0; i < radius + 1; i++) {
 		for (int j = 0; j < radius + 1; j++) {
-			float gaussWeight = exp(-(i * i + j * j) / sigmaDouble);
+			float gaussWeight = (i * i + j * j > radius * radius) ? 0.0f : exp(-(i * i + j * j) / sigmaDouble);
 			if (i == 0 && j == 0) {
 				sum += gaussWeight;
 			} else if (i == 0 || j == 0) {
