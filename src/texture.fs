@@ -8,30 +8,30 @@ in vec2 TexCoord;
 uniform sampler2D ourTexture0;
 uniform sampler2D ourTexture1;
 uniform int width, height;
-uniform float gaussWeight[(20 + 1) * (20 + 1)]; 
+uniform float gaussWeight[(10 + 1) * (10 + 1)]; 
 
 void main()
 {
 	float alphaSum = 0.0;
-	for (int i = -20; i < 20 + 1; i++) {
-		for (int j = -20; j < 20 + 1; j++) {
+	for (int i = -10; i < 10 + 1; i++) {
+		for (int j = -10; j < 10 + 1; j++) {
 			float i_float = float(i);
 			float j_float = float(j);
-			alphaSum += gaussWeight[abs(i) * (20 + 1) + abs(j)] * texture(ourTexture1, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height)).r;
+			alphaSum += gaussWeight[abs(i) * (10 + 1) + abs(j)] * texture(ourTexture1, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height)).r;
 		}
 	}
 	vec4 gaussedColor = vec4(vec3(0.0), 1.0);
-	for (int i = -20; i < 20 + 1; i++) {  
-		for (int j = -20; j < 20 + 1; j++) {
+	for (int i = -10; i < 10 + 1; i++) {  
+		for (int j = -10; j < 10 + 1; j++) {
 			float i_float = float(i);
 			float j_float = float(j);
-			gaussedColor += gaussWeight[abs(i) * (20 + 1) + abs(j)] * texture(ourTexture0, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height));
+			gaussedColor += gaussWeight[abs(i) * (10 + 1) + abs(j)] * texture(ourTexture0, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height));
 		}
 	}
-	if (alphaSum > 0.9) {
-		FragColor = texture(ourTexture0, TexCoord);
+	if (alphaSum > 0.5) {
+		FragColor = mix(gaussedColor, texture(ourTexture0, TexCoord), alphaSum * 2.0 - 1.0);
 	} else {
-		FragColor = mix(vec4(0.0), gaussedColor, alphaSum);  
+		FragColor = mix(vec4(0.0), gaussedColor, alphaSum * 2.0);  
 	}
 }
 

@@ -28,9 +28,9 @@ void main()
 			gaussedColor += gaussWeight[abs(i) * (radius + 1) + abs(j)] * texture(ourTexture0, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height));
 		}
 	}
-	if (alphaSum > 0.9) {
-		FragColor = texture(ourTexture0, TexCoord);
+	if (alphaSum > 0.5) {
+		FragColor = mix(gaussedColor, texture(ourTexture0, TexCoord), alphaSum * 2.0 - 1.0);
 	} else {
-		FragColor = mix(vec4(0.0), gaussedColor, alphaSum);  
+		FragColor = mix(vec4(0.0), gaussedColor, alphaSum * 2.0);  
 	}
 }
