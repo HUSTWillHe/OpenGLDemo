@@ -1,6 +1,8 @@
 #include <glad/glad.h>
 #include <glfw/glfw3.h>
 #include <stb/stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
@@ -23,11 +25,16 @@ const unsigned int SCR_HEIGHT = 600;
 int main(int argc, char** argv)
 {
 	int radius = 0;
-	if (argc == 2) {
+	float lightRatio = 1.0;
+	if (argc >= 2) {
 		std::string str(argv[1]);
 		radius = std::stoi(str);
 	} else {
 		radius = 3;
+	}
+	if (argc >= 3) {
+		std::string str(argv[2]);
+		lightRatio = std::stof(str);
 	}
 	std::vector<float> gaussWeight = genGaussWeight(radius);
 	std::cout<<"====================================="<<std::endl;
@@ -73,7 +80,8 @@ int main(int argc, char** argv)
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("../src/texture.vs", "../src/texture.fs"); 
+    Shader windowShader("../src/texture.vs", "../src/texture.fs"); 
+	Shader fboShader("../src/texture.fbo.vs", "../src/texture.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -124,7 +132,7 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // load image, create texture and generate mipmaps
-    int width = 800, height = 800, nrChannels = 3;
+    int width, height, nrChannels;
     // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
     std::string image_path = "goods.jpg";
     unsigned char *data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
@@ -150,8 +158,8 @@ int main(int argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
  
 	image_path = "mask.jpg";
-	nrChannels = 1;
-	data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
+	int maskNrChannels;
+	data = stbi_load(image_path.c_str(), &width, &height, &maskNrChannels, 0);
 	if (data) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, data); //todo 试一下GL_RED如果不行就gl_alpha, todo 怎么加载第二张图片
         glGenerateMipmap(GL_TEXTURE_2D);
@@ -184,17 +192,26 @@ int main(int argc, char** argv)
 	glGenFramebuffers(1, &frameBufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferId);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBufferId);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, renderBufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	
 	glEnable(GL_DEPTH_TEST);
 
-	ourShader.use();
-	ourShader.setInt("ourTexture0", 0);
-	ourShader.setInt("ourTexture1", 1);
-	ourShader.setInt("width", width);
-	ourShader.setInt("height", height);
-	glUniform1fv(glGetUniformLocation(ourShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
+	windowShader.use();
+	windowShader.setInt("ourTexture0", 0);
+	windowShader.setInt("ourTexture1", 1);
+	windowShader.setInt("width", width);
+	windowShader.setInt("height", height);
+	windowShader.setFloat("lightRatio", lightRatio);
+	glUniform1fv(glGetUniformLocation(windowShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
+
+	fboShader.use();
+	fboShader.setInt("ourTexture0", 0);
+	fboShader.setInt("ourTexture1", 1);
+	fboShader.setInt("width", width);
+	fboShader.setInt("height", height);
+	fboShader.setFloat("lightRatio", lightRatio);
+	glUniform1fv(glGetUniformLocation(fboShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
+
 
 	// fbo render
 	std::cout<<"now write file"<<std::endl;
@@ -203,7 +220,7 @@ int main(int argc, char** argv)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
-	ourShader.use();
+	fboShader.use();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glActiveTexture(GL_TEXTURE1);
@@ -216,11 +233,10 @@ int main(int argc, char** argv)
 	glBindTexture(GL_TEXTURE_2D, fboTexture);
 	std::vector<char> buf(width * height * 3);
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)buf.data());
-	std::string file_name;
-	file_name = "../resource/result" + std::to_string(radius) + ".rgb";
-	std::ofstream f(file_name, std::ios::out | std::ios::binary);
-	f.write(buf.data(), buf.size());
-	f.close();
+	std::stringstream lightRatioStr;
+	lightRatioStr << lightRatio << std::setprecision(3);
+	std::string file_name = "../resource/result" + std::to_string(radius) + "_" + lightRatioStr.str() + ".jpg";
+	stbi_write_jpg(file_name.c_str(), width, height, nrChannels, buf.data(), 0);  
 	glfwSwapBuffers(window);
 	glfwPollEvents();
     // render loop
@@ -241,7 +257,7 @@ int main(int argc, char** argv)
         glBindTexture(GL_TEXTURE_2D, texture);
 
         // render container
-        ourShader.use();
+        windowShader.use();
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glActiveTexture(GL_TEXTURE1);

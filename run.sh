@@ -9,5 +9,5 @@ if [[ $? != 0 ]];then
 fi
 cp ../resource/* ./
 cp ../src/texture* ./
-./Demo $1
+./Demo $1 $2
 popd

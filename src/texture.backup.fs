@@ -8,6 +8,7 @@ in vec2 TexCoord;
 uniform sampler2D ourTexture0;
 uniform sampler2D ourTexture1;
 uniform int width, height;
+uniform float lightRatio;
 uniform float gaussWeight[(radius + 1) * (radius + 1)]; 
 
 void main()
@@ -28,9 +29,6 @@ void main()
 			gaussedColor += gaussWeight[abs(i) * (radius + 1) + abs(j)] * texture(ourTexture0, vec2(TexCoord.x + i_float/width, TexCoord.y + j_float/height));
 		}
 	}
-	if (alphaSum > 0.5) {
-		FragColor = mix(gaussedColor, texture(ourTexture0, TexCoord), alphaSum * 2.0 - 1.0);
-	} else {
-		FragColor = mix(vec4(0.0), gaussedColor, alphaSum * 2.0);  
-	}
+	float gaussRatio = 2.0 * abs(alphaSum - 0.5);
+	FragColor = mix(gaussedColor * lightRatio, texture(ourTexture0, TexCoord), gaussRatio * gaussRatio);
 }
