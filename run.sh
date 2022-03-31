@@ -8,6 +8,5 @@ if [[ $? != 0 ]];then
 	exit -1
 fi
 cp ../resource/* ./
-cp ../src/texture* ./
 ./Demo $1 $2
 popd

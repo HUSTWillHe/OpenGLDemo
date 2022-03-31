@@ -30,5 +30,5 @@ void main()
 		}
 	}
 	float gaussRatio = 2.0 * abs(alphaSum - 0.5);
-	FragColor = mix(gaussedColor * lightRatio, texture(ourTexture0, TexCoord), gaussRatio * gaussRatio);
+	FragColor = mix(gaussedColor * lightRatio, texture(ourTexture0, TexCoord), pow(gaussRatio, radius));
 }
