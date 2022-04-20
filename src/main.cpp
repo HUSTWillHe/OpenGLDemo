@@ -14,18 +14,21 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <unistd.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 720;
+const unsigned int SCR_HEIGHT = 1560;
 
 int main(int argc, char** argv)
 {
 	int radius = 0;
 	float lightRatio = 1.0;
+	int goods_x = 360;
+	int goods_y = 786;
 	if (argc >= 2) {
 		std::string str(argv[1]);
 		radius = std::stoi(str);
@@ -37,16 +40,16 @@ int main(int argc, char** argv)
 		lightRatio = std::stof(str);
 	}
 	std::vector<float> gaussWeight = genGaussWeight(radius);
-	std::cout<<"====================================="<<std::endl;
-	std::cout<<"gauss weight"<<std::endl;
-	for (auto i = 0; i < radius + 1; i++) {
-		for (auto j = 0; j < radius + 1; j++) {
-			std::cout<<gaussWeight[i * (radius + 1) + j]<<" ";
-		}
-		std::cout<<std::endl;
-	}
+	// std::cout<<"====================================="<<std::endl;
+	// std::cout<<"gauss weight"<<std::endl;
+	// for (auto i = 0; i < radius + 1; i++) {
+	// 	for (auto j = 0; j < radius + 1; j++) {
+	// 		std::cout<<gaussWeight[i * (radius + 1) + j]<<" ";
+	// 	}
+	// 	std::cout<<std::endl;
+	// }
 	std::cout<<std::endl;
-	setRadius(radius, "../src/texture.backup.fs", "../src/texture.fs");  // 这里并没有实时修改过来
+	setRadius(radius, "../src/texture.backup.fs", "../src/texture.fs");  
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -134,8 +137,9 @@ int main(int argc, char** argv)
     // load image, create texture and generate mipmaps
     int width, height, nrChannels;
     // The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
-    std::string image_path = "goods.jpg";
+    std::string image_path = "qinglv_gaomingdu.jpg";
     unsigned char *data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
+	std::cout<<"width: "<<width<<" height: "<<height<<std::endl;
     if (data)
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);  
@@ -143,7 +147,7 @@ int main(int argc, char** argv)
     }
     else
     {
-        std::cout << "Failed to load texture" << std::endl;
+        std::cout << "Failed to load texture 1" << std::endl;
     }
     stbi_image_free(data);  
 
@@ -151,17 +155,18 @@ int main(int argc, char** argv)
 	glGenTextures(1, &maskTexture);
 	glBindTexture(GL_TEXTURE_2D, maskTexture);
     // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     // set texture filtering parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
  
-	image_path = "mask.jpg";
-	int maskNrChannels;
-	data = stbi_load(image_path.c_str(), &width, &height, &maskNrChannels, 0);
+	image_path = "image_seg.png";
+	int maskNrChannels, maskWidth, maskHeight;
+	data = stbi_load(image_path.c_str(), &maskWidth, &maskHeight, &maskNrChannels, 0);
+	std::cout<<" goods widht: "<< maskWidth << " height: "<<maskHeight<<std::endl;
 	if (data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, data); //todo 试一下GL_RED如果不行就gl_alpha, todo 怎么加载第二张图片
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, maskWidth, maskHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data); 
         glGenerateMipmap(GL_TEXTURE_2D);
 	} else {
         std::cout << "Failed to load texture" << std::endl;
@@ -202,6 +207,10 @@ int main(int argc, char** argv)
 	windowShader.setInt("width", width);
 	windowShader.setInt("height", height);
 	windowShader.setFloat("lightRatio", lightRatio);
+	windowShader.setInt("goods_x", goods_x);
+	windowShader.setInt("goods_y", goods_y);
+	windowShader.setInt("goods_width", maskWidth);
+	windowShader.setInt("goods_height",maskHeight);
 	glUniform1fv(glGetUniformLocation(windowShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
 	fboShader.use();
@@ -209,6 +218,10 @@ int main(int argc, char** argv)
 	fboShader.setInt("ourTexture1", 1);
 	fboShader.setInt("width", width);
 	fboShader.setInt("height", height);
+	fboShader.setInt("goods_x", goods_x);
+	fboShader.setInt("goods_y", goods_y);
+	fboShader.setInt("goods_width", maskWidth);
+	fboShader.setInt("goods_height",maskHeight);
 	fboShader.setFloat("lightRatio", lightRatio);
 	glUniform1fv(glGetUniformLocation(fboShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
@@ -241,6 +254,7 @@ int main(int argc, char** argv)
 	glfwPollEvents();
     // render loop
     // -----------
+	// if(0)
     while (!glfwWindowShouldClose(window))
     {
         // input
@@ -270,6 +284,7 @@ int main(int argc, char** argv)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
+		sleep(0.1);
     }
 
     // optional: de-allocate all resources once they've outlived their purpose:
