@@ -19,8 +19,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 720;
+const unsigned int SCR_HEIGHT = 1560;
 
 int main(int argc, char** argv)
 {
@@ -126,8 +126,8 @@ int main(int argc, char** argv)
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
     // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     // set texture filtering parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -151,8 +151,8 @@ int main(int argc, char** argv)
 	glGenTextures(1, &maskTexture);
 	glBindTexture(GL_TEXTURE_2D, maskTexture);
     // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     // set texture filtering parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -168,6 +168,28 @@ int main(int argc, char** argv)
 	}
 	stbi_image_free(data);
 
+	unsigned int backgroundTexture;
+	glGenTextures(1, &backgroundTexture);
+	glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	image_path = "qinglv_gaomingdu.jpg";
+	int backgroundNrChannels, bgWidth, bgHeight;
+
+	data = stbi_load(image_path.c_str(), &bgWidth, &bgHeight, &backgroundNrChannels, 0);
+	if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bgWidth, bgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data); //todo 试一下GL_RED如果不行就gl_alpha, todo 怎么加载第二张图片
+        glGenerateMipmap(GL_TEXTURE_2D);
+	} else {
+        std::cout << "Failed to load bg texture" << std::endl;
+	}
+	std::cout<<"bg width: "<<bgWidth<<" height: "<<bgHeight<<std::endl;
+	std::cout<<"mask width: "<<width<<" height: "<<height<<std::endl;
+	stbi_image_free(data);
+
 	// fbo
 	unsigned int fboTexture;
 	glGenTextures(1, &fboTexture);
@@ -178,14 +200,14 @@ int main(int argc, char** argv)
     // set texture filtering parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bgWidth, bgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	unsigned int renderBufferId;
 	glGenRenderbuffers(1, &renderBufferId);
 	glBindRenderbuffer(GL_RENDERBUFFER, renderBufferId);
 	// glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB, width, height);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB, bgWidth, bgHeight);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0); 
 
 	unsigned int frameBufferId;
@@ -199,17 +221,23 @@ int main(int argc, char** argv)
 	windowShader.use();
 	windowShader.setInt("ourTexture0", 0);
 	windowShader.setInt("ourTexture1", 1);
+	windowShader.setInt("backgroundTexture", 2);
 	windowShader.setInt("width", width);
 	windowShader.setInt("height", height);
+	windowShader.setInt("bgWidth", bgWidth);
+	windowShader.setInt("bgHeight", bgHeight);
 	windowShader.setFloat("lightRatio", lightRatio);
 	glUniform1fv(glGetUniformLocation(windowShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
 	fboShader.use();
 	fboShader.setInt("ourTexture0", 0);
 	fboShader.setInt("ourTexture1", 1);
+	windowShader.setInt("backgroundTexture", 2);
 	fboShader.setInt("width", width);
 	fboShader.setInt("height", height);
 	fboShader.setFloat("lightRatio", lightRatio);
+	windowShader.setInt("bgWidth", bgWidth);
+	windowShader.setInt("bgHeight", bgHeight);
 	glUniform1fv(glGetUniformLocation(fboShader.ID, "gaussWeight"), (radius + 1) * (radius + 1), gaussWeight.data());
 
 
@@ -225,18 +253,20 @@ int main(int argc, char** argv)
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, maskTexture);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, backgroundTexture);
 
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	glBindTexture(GL_TEXTURE_2D, fboTexture);
-	std::vector<char> buf(width * height * 3);
+	std::vector<char> buf(bgWidth* bgHeight* 3);
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)buf.data());
 	std::stringstream lightRatioStr;
 	lightRatioStr << lightRatio << std::setprecision(3);
 	std::string file_name = "../resource/result" + std::to_string(radius) + "_" + lightRatioStr.str() + ".jpg";
-	stbi_write_jpg(file_name.c_str(), width, height, nrChannels, buf.data(), 0);  
+	stbi_write_jpg(file_name.c_str(), bgWidth, bgHeight, nrChannels, buf.data(), 0);  
 	glfwSwapBuffers(window);
 	glfwPollEvents();
     // render loop
@@ -262,6 +292,8 @@ int main(int argc, char** argv)
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, maskTexture);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, backgroundTexture);
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -280,6 +312,7 @@ int main(int argc, char** argv)
 	glDeleteFramebuffers(1, &frameBufferId);
 	glDeleteTextures(1, &texture);
 	glDeleteTextures(1, &maskTexture);
+	glDeleteTextures(1, &backgroundTexture);
 	glDeleteTextures(1, &fboTexture);
 	glDeleteRenderbuffers(1, &renderBufferId);
 
