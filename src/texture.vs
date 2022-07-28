@@ -10,11 +10,13 @@ out vec3 Normal;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform vec2 offsets[100];
 
 void main()
 {
+	vec2 offset = offsets[gl_InstanceID];
 	TexCoord = vec2(aTexCoord.x, aTexCoord.y);
-	FragPos = vec3(model * vec4(aPos, 1.0));
+	FragPos = vec3(model * vec4(aPos + vec3(offset, 0.0), 1.0));
 	Normal = mat3(transpose(inverse(model))) * aNormal;
 	gl_Position = projection * view * vec4(FragPos, 1.0);
 }

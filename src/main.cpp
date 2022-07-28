@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <time.h>
+#include <sstream>
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -115,23 +116,27 @@ int main()
 		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
 	};
+	glm::vec3 cubePosition = glm::vec3(1.0f,  1.0f,  -10.0f);
 
-	glm::vec3 cubePositions[] = {
-		glm::vec3( 1.0f,  1.0f,  -10.0f), 
-		glm::vec3( -2.0f,  -2.0f, -1.0f) 
-		// glm::vec3(-1.5f, -2.2f, -2.5f),  
-		// glm::vec3(-3.8f, -2.0f, -12.3f),  
-		// glm::vec3( 2.4f, -0.4f, -3.5f),  
-		// glm::vec3(-1.7f,  3.0f, -7.5f),  
-		// glm::vec3( 1.3f, -2.0f, -2.5f),  
-		// glm::vec3( 1.5f,  2.0f, -2.5f), 
-		// glm::vec3( 1.5f,  0.2f, -1.5f), 
-		// glm::vec3(-1.3f,  1.0f, -1.5f)  
-	};
     unsigned int indices[] = {  
         0, 1, 3, // first triangle
         1, 2, 3  // second triangle
     };
+
+	glm::vec2 translations[100];
+	int index = 0;
+	float offset = 0.1f;
+	for (int y = - 5; y < 5; y ++)
+	{
+		for (int x = -5; x < 5; x++) 
+		{
+			glm::vec2 translation;
+			translation.x = (float)x / 0.8f + offset;
+			translation.y = (float)y / 0.8f + offset;
+			translations[index++] = translation;
+		}
+	}
+
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -169,12 +174,16 @@ int main()
 	ourShader.use();
 	ourShader.setInt("material.diffuse", 0);
 	ourShader.setInt("material.specular", 1);
+	for (unsigned int i = 0; i < 100; i++)
+	{
+		std::stringstream ss;
+		std::string index;
+		ss << i;
+		index = ss.str();
+		ourShader.setVec2(("offsets[" + index + "]").c_str(), translations[i]);
+	}
 
-	glm::mat4 trans, model, view, projection;
-	std::vector<std::vector<float>> vTrans{{1.0, 0.0, 0.0, 0.0},
-									  {0.0, 1.0, 0.0, 0.0},
-							  		  {0.0, 0.0, 1.0, 0.0},
-									  {0.0, 0.0, 0.0, 1.0}};
+	glm::mat4 model, view, projection;
 	clock_t start = clock();
     // render loop
     // -----------
@@ -209,22 +218,13 @@ int main()
 		projection = glm::perspective(glm::radians(fov), (float)SCR_WIDTH/(float)SCR_HEIGHT, 1.0f, 100.0f);
 		ourShader.setMat4("projection", projection);
 
-		for (auto i = 0; i < 4; i++) {
-			for (auto j = 0; j < 4; j++) {
-				trans[i][j] = vTrans[i][j];
-				view[i][j] = vTrans[i][j];
-				model[i][j] = vTrans[i][j];
-			}
-		}
+		model = glm::mat4(1.0);
 		clock_t now = clock();
 		float duration = (now-start)/600;
-		for (int i = 0; i < sizeof(cubePositions)/sizeof(cubePositions[0]); i++) {
-			model = glm::translate(model, cubePositions[i]);
-			float angle = 20.0f*i;
-			ourShader.setMat4("model", model);
+		model = glm::translate(model, cubePosition);
+		ourShader.setMat4("model", model);
 
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-		}
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 36, 100);
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -249,17 +249,17 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-	// float cameraSpeed = 0.05f; // adjust accordingly
-    // if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-    //     cameraPos += cameraSpeed * cameraFront;
-    // if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-    //     cameraPos -= cameraSpeed * cameraFront;
-    // if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-    //     cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    // if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-    //     cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-	// if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-	// 	std::cout<<"cameraPos: "<<cameraPos[0]<<" "<<cameraPos[1]<<" "<<cameraPos[2]<<std::endl;
+	float cameraSpeed = 0.05f; // adjust accordingly
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		std::cout<<"cameraPos: "<<cameraPos[0]<<" "<<cameraPos[1]<<" "<<cameraPos[2]<<std::endl;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -273,50 +273,50 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    // if(firstMouse)
-    // {
-    //     lastX = xpos;
-    //     lastY = ypos;
-    //     firstMouse = false;
-    // }
+    if(firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
 
-    // float xoffset = xpos - lastX;
-    // float yoffset = lastY - ypos; 
-    // lastX = xpos;
-    // lastY = ypos;
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; 
+    lastX = xpos;
+    lastY = ypos;
 
-    // float sensitivity = 0.05;
-    // xoffset *= sensitivity;
-    // yoffset *= sensitivity;
+    float sensitivity = 0.05;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
 
-    // yaw   += xoffset;
-    // pitch += yoffset;
+    yaw   += xoffset;
+    pitch += yoffset;
 
-    // if(pitch > 89.0f)
-    //     pitch = 89.0f;
-    // if(pitch < -89.0f)
-    //     pitch = -89.0f;
+    if(pitch > 89.0f)
+        pitch = 89.0f;
+    if(pitch < -89.0f)
+        pitch = -89.0f;
 
-    // glm::vec3 front;
-    // front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    // front.y = sin(glm::radians(pitch));
-    // front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    // cameraFront = glm::normalize(front);
-	// static int mouseCnt = 1;
-	// if (mouseCnt % 20 == 0)
-	// 	std::cout<<"cameraFront: "<<cameraFront[0]<<" "<<cameraFront[1]<<" "<<cameraFront[2]<<std::endl;
-	// mouseCnt++;
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+	static int mouseCnt = 1;
+	if (mouseCnt % 20 == 0)
+		std::cout<<"cameraFront: "<<cameraFront[0]<<" "<<cameraFront[1]<<" "<<cameraFront[2]<<std::endl;
+	mouseCnt++;
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-//   if(fov >= 1.0f && fov <= 90.0f)
-//     fov -= yoffset;
-//   if(fov <= 1.0f)
-//     fov = 1.0f;
-//   if(fov >= 90.0f)
-//     fov = 90.0f;
-// 	std::cout<<"fov: "<<fov<<std::endl;
+  if(fov >= 1.0f && fov <= 90.0f)
+    fov -= yoffset;
+  if(fov <= 1.0f)
+    fov = 1.0f;
+  if(fov >= 90.0f)
+    fov = 90.0f;
+	std::cout<<"fov: "<<fov<<std::endl;
 }
 
 unsigned int loadTexture(const std::string& path) {
