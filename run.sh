@@ -10,5 +10,6 @@ fi
 cp -r ../resource/* ./
 cp  ../src/texture* ./
 cp  ../src/skyTexture* ./
+cp  ../src/cubetexture* ./
 ./Demo
 popd
