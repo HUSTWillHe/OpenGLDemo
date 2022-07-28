@@ -7,7 +7,8 @@ if [[ $? != 0 ]];then
 	echo "BUILD FAILED."
 	exit -1
 fi
-cp ../resource/* ./
-cp ../src/texture* ./
+cp -r ../resource/* ./
+cp  ../src/texture* ./
+cp  ../src/skyTexture* ./
 ./Demo
 popd
